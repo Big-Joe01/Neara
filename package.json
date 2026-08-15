@@ -1,0 +1,30 @@
+{
+  "name": "neara",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NEARA — One tap from home. A transparent Nigerian housing marketplace.",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
+    "db:generate": "pnpm --filter @neara/api prisma generate",
+    "db:migrate": "pnpm --filter @neara/api prisma migrate dev",
+    "db:seed": "pnpm --filter @neara/api tsx prisma/seed.ts",
+    "db:studio": "pnpm --filter @neara/api prisma studio",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "neara-eslint": "workspace:*",
+    "prettier": "^3.3.3",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  }
+}

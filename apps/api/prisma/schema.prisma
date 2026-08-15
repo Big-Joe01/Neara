@@ -1,0 +1,888 @@
+// NEARA — MySQL schema (Prisma)
+// One tap from home.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------------ ENUMS
+
+enum UserRole {
+  CUSTOMER
+  LANDLORD
+  AGENT
+  ADMIN
+}
+
+enum UserStatus {
+  active
+  suspended
+  pending
+  deleted
+}
+
+enum RentalPeriod {
+  daily
+  weekly
+  monthly
+  quarterly
+  yearly
+  custom
+}
+
+enum ElectricityReliability {
+  excellent
+  fair
+  poor
+  none
+}
+
+enum WaterAvailability {
+  reliable
+  intermittent
+  none
+}
+
+enum WaterSource {
+  borehole
+  tap
+  tanker
+  well
+  none
+}
+
+enum ListingSource {
+  direct
+  agent
+}
+
+enum PropertyStatus {
+  draft
+  pending_review
+  active
+  suspended
+  rented
+  expired
+  removed
+}
+
+enum AuthorizationStatus {
+  pending
+  verified
+  rejected
+  revoked
+  expired
+}
+
+enum AuthSource {
+  landlord_grant
+  agent_evidence
+}
+
+enum InspectionStatus {
+  requested
+  confirmed
+  rescheduled
+  cancelled
+  completed
+}
+
+enum ApplicationStatus {
+  submitted
+  under_review
+  approved
+  rejected
+  info_requested
+  withdrawn
+}
+
+enum PaymentStatus {
+  pending
+  successful
+  failed
+  refunded
+  cancelled
+}
+
+enum PaymentProvider {
+  paystack
+  bank_transfer
+  ussd
+  other
+}
+
+enum AgreementStatus {
+  draft
+  pending_signature
+  signed
+  executed
+  voided
+}
+
+enum DocumentType {
+  identity
+  proof_of_address
+  landlord_ownership
+  agent_license
+  agent_authorization
+  income_proof
+  other
+}
+
+enum DocumentStatus {
+  pending
+  approved
+  rejected
+}
+
+enum VerificationLevel {
+  none
+  identity
+  landlord
+  property
+  inspection
+  neara
+}
+
+enum NotificationType {
+  new_property
+  application
+  application_status
+  inspection
+  payment
+  agreement
+  signature
+  agent_authorization
+  verification
+  message
+  dispute
+  account
+  report
+}
+
+enum NotificationChannel {
+  in_app
+  push
+  email
+  sms
+}
+
+enum ReportReason {
+  fake_property
+  fake_landlord
+  fake_agent
+  wrong_price
+  wrong_location
+  misleading_photos
+  duplicate_property
+  scam
+  abusive_behavior
+  inappropriate_content
+  other
+}
+
+enum ReportPriority {
+  low
+  medium
+  high
+  critical
+}
+
+enum ReportStatus {
+  open
+  under_review
+  resolved
+  dismissed
+}
+
+enum ReportedEntityType {
+  property
+  landlord
+  agent
+  customer
+  message
+}
+
+enum DisputeType {
+  payment_dispute
+  property_mismatch
+  landlord_dispute
+  agent_fee_dispute
+  agreement_dispute
+  refund_request
+}
+
+enum DisputeStatus {
+  opened
+  under_review
+  awaiting_information
+  resolved
+  rejected
+  escalated
+}
+
+enum AdminRole {
+  moderator
+  super_admin
+}
+
+// ------------------------------------------------------------------ USERS
+
+model User {
+  id                String         @id @default(uuid())
+  email             String         @unique
+  phone             String         @unique
+  passwordHash      String
+  role              UserRole
+  status            UserStatus     @default(pending)
+  displayName       String
+  avatarUrl         String?
+  isEmailVerified   Boolean        @default(false)
+  isPhoneVerified   Boolean        @default(false)
+  isIdentityVerified Boolean       @default(false)
+  verificationLevel VerificationLevel @default(none)
+  otpCode           String?
+  otpExpiresAt      DateTime?
+  otpPurpose        String?
+  resetToken        String?        @unique
+  resetTokenExpiresAt DateTime?
+  refreshTokenHash  String?
+  lastLoginAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  deletedAt         DateTime?
+
+  customerProfile   CustomerProfile?
+  landlordProfile   LandlordProfile?
+  agentProfile      AgentProfile?
+  adminProfile      AdminProfile?
+  properties        Property[]     @relation("LandlordProperties")
+  agentAuthorizations AgentAuthorization[] @relation("AgentAuthorizations")
+  grantedAuthorizations AgentAuthorization[] @relation("LandlordAuthorizations")
+  applications      Application[]  @relation("CustomerApplications")
+  landlordApplications Application[] @relation("LandlordApplications")
+  inspections       Inspection[]   @relation("CustomerInspections")
+  landlordInspections Inspection[] @relation("LandlordInspections")
+  agentInspections  Inspection[]   @relation("AgentInspections")
+  payments          Payment[]      @relation("CustomerPayments")
+  landlordPayments  Payment[]      @relation("LandlordPayments")
+  agreementsTenant  Agreement[]    @relation("TenantAgreements")
+  agreementsLandlord Agreement[]   @relation("LandlordAgreements")
+  agreementSignatures AgreementSignature[]
+  verificationDocuments VerificationDocument[]
+  conversations     ConversationParticipant[]
+  messages          Message[]
+  notifications     Notification[]
+  reviewsGiven      Review[]       @relation("ReviewsGiven")
+  reviewsReceived   Review[]       @relation("ReviewsReceived")
+  reviewsReceivedAgent Review[]    @relation("ReviewsReceivedAgent")
+  reportsMade       Report[]       @relation("ReportsMade")
+  disputesOpened    Dispute[]      @relation("DisputesOpened")
+  disputesAgainst   Dispute[]      @relation("DisputesAgainst")
+  favorites         Favorite[]
+  searchHistory     SearchHistory[]
+  auditLogs         AuditLog[]
+  feeRules          FeeRule[]      @relation("FeeRuleCreator")
+
+  @@index([role])
+  @@index([status])
+  @@index([email])
+  @@index([phone])
+}
+
+model CustomerProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  occupation        String?
+  employer          String?
+  monthlyIncome     Int?
+  preferredLocations Json?
+  bio               String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model LandlordProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName String?
+  bio         String?
+  isVerified  Boolean  @default(false)
+  verifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AgentProfile {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agencyName           String?
+  licenseNumber        String?
+  bio                  String?
+  isVerified           Boolean  @default(false)
+  verifiedAt           DateTime?
+  ratingAverage        Float    @default(0)
+  ratingCount          Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model AdminProfile {
+  id     String   @id @default(uuid())
+  userId String   @unique
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   AdminRole @default(moderator)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ------------------------------------------------------------------ LOOKUPS
+
+model PropertyType {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  category  String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  properties Property[]
+
+  @@index([slug])
+}
+
+model Amenity {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  icon      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  properties PropertyAmenity[]
+}
+
+model Location {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  city      String
+  state     String
+  latitude  Float?
+  longitude Float?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([city])
+  @@index([state])
+}
+
+// ------------------------------------------------------------------ PROPERTIES
+
+model Property {
+  id              String   @id @default(uuid())
+  slug            String   @unique
+  title           String
+  description     String   @db.LongText
+  propertyTypeId  String
+  propertyType    PropertyType @relation(fields: [propertyTypeId], references: [id])
+  rentalPeriod    RentalPeriod
+  status          PropertyStatus @default(pending_review)
+  listingSource   ListingSource @default(direct)
+
+  address         String
+  city            String
+  state           String
+  area            String?
+  landmark        String?
+  latitude        Float
+  longitude       Float
+
+  rent            Int
+  cautionFee      Int      @default(0)
+  serviceCharge   Int      @default(0)
+  legalFee        Int      @default(0)
+  agentFee        Int      @default(0)
+  otherFees       Int      @default(0)
+  otherFeesLabel  String?
+  totalMoveIn     Int      @default(0)
+
+  electricity     ElectricityReliability @default(fair)
+  prepaidMeter    Boolean  @default(false)
+  water           WaterAvailability @default(intermittent)
+  waterSource     WaterSource @default(tap)
+  internet        Boolean  @default(false)
+  generator       Boolean  @default(false)
+  borehole        Boolean  @default(false)
+  estimatedUtilityCost Int?
+
+  bedrooms        Int      @default(0)
+  bathrooms       Int      @default(0)
+  kitchen         Boolean  @default(true)
+  parking         Int      @default(0)
+  security        Boolean  @default(false)
+  compound        Boolean  @default(false)
+  fenced          Boolean  @default(false)
+  airConditioning Boolean  @default(false)
+  furnished       Boolean  @default(false)
+  balcony         Boolean  @default(false)
+  wardrobe        Boolean  @default(false)
+  securityGate    Boolean  @default(false)
+
+  coverImage      String
+  videoUrl        String?
+  tour360Url      String?
+
+  nearaVerified       Boolean @default(false)
+  identityVerified    Boolean @default(false)
+  landlordVerified    Boolean @default(false)
+  propertyVerified    Boolean @default(false)
+  inspectionVerified  Boolean @default(false)
+  verificationLevel   VerificationLevel @default(none)
+  verifiedAt          DateTime?
+
+  landlordId      String
+  landlord        User     @relation("LandlordProperties", fields: [landlordId], references: [id])
+  agentId         String?
+  images          PropertyImage[]
+  amenities       PropertyAmenity[]
+  agentAuths      AgentAuthorization[]
+  inspections     Inspection[]
+  applications    Application[]
+  payments        Payment[]
+  agreements      Agreement[]
+  reviews         Review[]
+  favorites       Favorite[]
+  searchHits      SearchHistory[]
+
+  views           Int      @default(0)
+  saves           Int      @default(0)
+  ratingAverage   Float    @default(0)
+  ratingCount     Int      @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  @@index([landlordId])
+  @@index([city])
+  @@index([state])
+  @@index([propertyTypeId])
+  @@index([status])
+  @@index([rentalPeriod])
+  @@index([rent])
+  @@index([createdAt])
+  @@index([nearaVerified])
+}
+
+model PropertyImage {
+  id          String   @id @default(uuid())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  url         String
+  thumbnailUrl String
+  publicId    String?
+  isCover     Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+model PropertyAmenity {
+  id          String   @id @default(uuid())
+  propertyId  String
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  amenityId   String
+  amenity     Amenity  @relation(fields: [amenityId], references: [id])
+
+  @@unique([propertyId, amenityId])
+  @@index([propertyId])
+}
+
+// ------------------------------------------------------------------ AUTHORIZATION + FEES
+
+model AgentAuthorization {
+  id              String   @id @default(uuid())
+  agentId         String
+  landlord        User     @relation("LandlordAuthorizations", fields: [landlordId], references: [id])
+  landlordId      String
+  agent           User     @relation("AgentAuthorizations", fields: [agentId], references: [id])
+  propertyId      String?
+  property        Property? @relation(fields: [propertyId], references: [id])
+  status          AuthorizationStatus @default(pending)
+  source          AuthSource
+  evidenceDocumentUrl String?
+  validFrom       DateTime @default(now())
+  validUntil      DateTime?
+  verifiedAt      DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([landlordId])
+  @@index([propertyId])
+  @@index([status])
+}
+
+model FeeRule {
+  id              String   @id @default(uuid())
+  name            String
+  minRent         Int
+  maxRent         Int?
+  maxPercentage   Float
+  maxFixedFee     Int?
+  minFee          Int?
+  propertyTypeIds Json?
+  locationIds     Json?
+  validFrom       DateTime
+  validUntil      DateTime?
+  isActive        Boolean  @default(true)
+  createdById     String
+  createdBy       User     @relation("FeeRuleCreator", fields: [createdById], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([minRent])
+  @@index([isActive])
+}
+
+// ------------------------------------------------------------------ INSPECTIONS
+
+model Inspection {
+  id              String   @id @default(uuid())
+  propertyId      String
+  property        Property @relation(fields: [propertyId], references: [id])
+  customerId      String
+  customer        User     @relation("CustomerInspections", fields: [customerId], references: [id])
+  landlordId      String?
+  landlord        User?    @relation("LandlordInspections", fields: [landlordId], references: [id])
+  agentId         String?
+  agent           User?    @relation("AgentInspections", fields: [agentId], references: [id])
+  requestedDate   String
+  requestedTime   String
+  confirmedDate   DateTime?
+  status          InspectionStatus @default(requested)
+  notes           String? @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([customerId])
+  @@index([status])
+}
+
+// ------------------------------------------------------------------ APPLICATIONS
+
+model Application {
+  id              String   @id @default(uuid())
+  propertyId      String
+  property        Property @relation(fields: [propertyId], references: [id])
+  customerId      String
+  customer        User     @relation("CustomerApplications", fields: [customerId], references: [id])
+  landlordId      String
+  landlord        User     @relation("LandlordApplications", fields: [landlordId], references: [id])
+  agentId         String?
+  moveInDate      String
+  requestedPeriod RentalPeriod
+  employment      String?
+  income          Int?
+  status          ApplicationStatus @default(submitted)
+  notes           String? @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([customerId])
+  @@index([landlordId])
+  @@index([status])
+}
+
+// ------------------------------------------------------------------ PAYMENTS
+
+model Payment {
+  id              String   @id @default(uuid())
+  reference       String   @unique
+  propertyId      String
+  property        Property @relation(fields: [propertyId], references: [id])
+  customerId      String
+  customer        User     @relation("CustomerPayments", fields: [customerId], references: [id])
+  landlordId      String
+  landlord        User     @relation("LandlordPayments", fields: [landlordId], references: [id])
+  agentId         String?
+  applicationId   String?
+  amount          Int
+  breakdown       Json
+  provider        PaymentProvider @default(paystack)
+  providerReference String?
+  status          PaymentStatus @default(pending)
+  receiptUrl      String?
+  paidAt          DateTime?
+  webhookProcessedAt DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  agreements      Agreement[]
+  disputes        Dispute[]
+
+  @@index([propertyId])
+  @@index([customerId])
+  @@index([status])
+  @@index([reference])
+}
+
+// ------------------------------------------------------------------ AGREEMENTS
+
+model Agreement {
+  id              String   @id @default(uuid())
+  agreementId     String   @unique
+  paymentId       String
+  payment         Payment  @relation(fields: [paymentId], references: [id])
+  propertyId      String
+  property        Property @relation(fields: [propertyId], references: [id])
+  landlordId      String
+  landlord        User     @relation("LandlordAgreements", fields: [landlordId], references: [id])
+  tenantId        String
+  tenant          User     @relation("TenantAgreements", fields: [tenantId], references: [id])
+  agentId         String?
+  documentUrl     String
+  verificationUrl String
+  qrCodeUrl       String
+  terms           String   @db.LongText
+  status          AgreementStatus @default(pending_signature)
+  documentVersion String   @default("1.0")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  signatures      AgreementSignature[]
+
+  @@index([paymentId])
+  @@index([tenantId])
+  @@index([landlordId])
+}
+
+model AgreementSignature {
+  id              String   @id @default(uuid())
+  agreementId     String
+  agreement       Agreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  signerId        String
+  signer          User     @relation(fields: [signerId], references: [id])
+  signerName      String
+  signerRole      UserRole
+  signatureData   String   @db.Text
+  signedAt        DateTime @default(now())
+  ipAddress       String?
+  documentVersion String
+
+  @@index([agreementId])
+}
+
+// ------------------------------------------------------------------ VERIFICATION
+
+model VerificationDocument {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            DocumentType
+  documentUrl     String
+  status          DocumentStatus @default(pending)
+  reviewedAt      DateTime?
+  reviewerId      String?
+  notes           String? @db.Text
+  uploadedAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ------------------------------------------------------------------ MESSAGING
+
+model Conversation {
+  id              String   @id @default(uuid())
+  propertyId      String?
+  participants    ConversationParticipant[]
+  messages        Message[]
+  lastMessageAt   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([propertyId])
+}
+
+model ConversationParticipant {
+  id              String   @id @default(uuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id              String   @id @default(uuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User     @relation(fields: [senderId], references: [id])
+  content         String   @db.Text
+  attachments     Json?
+  readBy          Json?
+  createdAt       DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+// ------------------------------------------------------------------ NOTIFICATIONS
+
+model Notification {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            NotificationType
+  channel         NotificationChannel @default(in_app)
+  title           String
+  body            String   @db.Text
+  data            Json?
+  read            Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([read])
+}
+
+// ------------------------------------------------------------------ REVIEWS
+
+model Review {
+  id              String   @id @default(uuid())
+  reviewerId      String
+  reviewer        User     @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  propertyId      String?
+  property        Property? @relation(fields: [propertyId], references: [id])
+  landlordId      String?
+  landlord        User?    @relation("ReviewsReceived", fields: [landlordId], references: [id])
+  agentId         String?
+  agent           User?    @relation("ReviewsReceivedAgent", fields: [agentId], references: [id])
+  rating          Int
+  comment         String   @db.Text
+  isVerifiedTransaction Boolean @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([propertyId])
+  @@index([landlordId])
+  @@index([agentId])
+}
+
+// ------------------------------------------------------------------ REPORTS
+
+model Report {
+  id              String   @id @default(uuid())
+  reporterId      String
+  reporter        User     @relation("ReportsMade", fields: [reporterId], references: [id])
+  reason          ReportReason
+  description     String   @db.Text
+  reportedEntityType ReportedEntityType
+  reportedEntityId String
+  evidenceUrls    Json?
+  status          ReportStatus @default(open)
+  priority        ReportPriority @default(medium)
+  adminNotes      String? @db.Text
+  resolution      String? @db.Text
+  createdAt       DateTime @default(now())
+  resolvedAt      DateTime?
+
+  @@index([reportedEntityId])
+  @@index([status])
+}
+
+// ------------------------------------------------------------------ DISPUTES
+
+model Dispute {
+  id              String   @id @default(uuid())
+  openedById      String
+  openedBy        User     @relation("DisputesOpened", fields: [openedById], references: [id])
+  againstId       String
+  against         User     @relation("DisputesAgainst", fields: [againstId], references: [id])
+  type            DisputeType
+  paymentId       String?
+  payment         Payment? @relation(fields: [paymentId], references: [id])
+  propertyId      String?
+  description     String   @db.Text
+  status          DisputeStatus @default(opened)
+  resolution      String? @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([openedById])
+  @@index([againstId])
+  @@index([status])
+}
+
+// ------------------------------------------------------------------ FAVORITES + SEARCH
+
+model Favorite {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId      String
+  property        Property @relation(fields: [propertyId], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, propertyId])
+  @@index([userId])
+}
+
+model SearchHistory {
+  id              String   @id @default(uuid())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  query           String   @db.Text
+  filters         Json?
+  propertyId      String?
+  property        Property? @relation(fields: [propertyId], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ------------------------------------------------------------------ PLATFORM
+
+model PlatformSetting {
+  id              String   @id @default(uuid())
+  key             String   @unique
+  value           String   @db.Text
+  description     String?
+  updatedAt       DateTime @updatedAt
+}
+
+model AuditLog {
+  id              String   @id @default(uuid())
+  actorId         String?
+  actor           User?    @relation(fields: [actorId], references: [id])
+  actorRole       UserRole?
+  action          String
+  entityType      String
+  entityId        String?
+  metadata        Json?
+  ipAddress       String?
+  createdAt       DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entityType])
+  @@index([createdAt])
+}
