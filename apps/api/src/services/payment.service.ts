@@ -8,6 +8,7 @@ import type { PaymentBreakdown, Payment, PaymentProvider } from '@neara/types';
 import { audit } from '../lib/audit.js';
 import type { AuthedRequest } from '../middleware/auth.js';
 import { agreementService } from './agreement.service.js';
+import crypto from 'node:crypto';
 import { notify } from '../lib/notify.js';
 
 export interface PaystackInitializeResponse {
@@ -104,7 +105,6 @@ class PaystackProvider implements IPaymentProvider {
   /** Verify the webhook signature (HMAC SHA512). */
   verifyWebhookSignature(rawBody: string, signature: string): boolean {
     if (!appConfig.paystack.webhookSecret) return false;
-    const crypto = require('node:crypto') as typeof import('node:crypto');
     const expected = crypto
       .createHmac('sha512', appConfig.paystack.webhookSecret)
       .update(rawBody)
@@ -331,7 +331,6 @@ class PaymentService {
         await agreementService.generateForPayment(paymentId);
       } catch (e) {
         // agreement generation failure should not roll back a settled payment
-        // eslint-disable-next-line no-console
         console.error('agreement generation failed', e);
       }
 

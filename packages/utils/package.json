@@ -7,8 +7,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts",
-    "test": "vitest run",
+    "lint": "eslint .",
+    "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist .turbo coverage",
     "build": "tsc -p tsconfig.build.json"
   },
@@ -18,7 +18,9 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "neara-eslint": "workspace:*",
+    "eslint": "^9.16.0"
   },
   "exports": {
     ".": {
