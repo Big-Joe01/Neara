@@ -5,7 +5,8 @@
   "description": "NEARA — One tap from home. A transparent Nigerian housing marketplace.",
   "packageManager": "pnpm@11.22.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=20",
+    "pnpm": ">=10"
   },
   "scripts": {
     "build": "turbo run build",

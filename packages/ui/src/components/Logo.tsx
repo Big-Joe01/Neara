@@ -23,8 +23,9 @@ export const Logo = ({ variant = 'primary', className, alt = 'NEARA — One tap 
     <img
       src={src}
       alt={alt}
-      className={cn('h-auto w-auto select-none', className)}
+      className={cn('inline-block h-auto w-auto max-h-24 max-w-full select-none', className)}
       draggable={false}
+      loading="eager"
     />
   );
 };
